@@ -279,6 +279,7 @@ export default function DashboardPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCampaigns, setExpandedCampaigns] = useState<Record<string, boolean>>({});
+  const [refreshingCampaigns, setRefreshingCampaigns] = useState(false);
 
   // State: Modals
   const [selectedLinkDetails, setSelectedLinkDetails] = useState<{
@@ -328,6 +329,16 @@ export default function DashboardPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Refresh Campaigns Handler
+  const handleRefreshCampaigns = async () => {
+    setRefreshingCampaigns(true);
+    try {
+      await loadData(true);
+    } finally {
+      setTimeout(() => setRefreshingCampaigns(false), 500);
+    }
+  };
 
   // Channel Toggle Logic
   const toggleChannel = (chKey: string) => {
@@ -1006,17 +1017,31 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {/* Search Filter */}
-            <div style={{ position: 'relative', width: '280px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
-              <input
-                type="text"
-                className="glass-input"
-                style={{ height: '40px', paddingLeft: '2.4rem', fontSize: '0.875rem' }}
-                placeholder="Search campaigns..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            {/* Search Filter & Refresh Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: '260px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
+                <input
+                  type="text"
+                  className="glass-input"
+                  style={{ height: '40px', paddingLeft: '2.4rem', fontSize: '0.875rem' }}
+                  placeholder="Search campaigns..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRefreshCampaigns}
+                disabled={refreshingCampaigns}
+                className="btn btn-secondary"
+                style={{ height: '40px', padding: '0 0.95rem', fontSize: '0.8125rem', gap: '0.45rem', whiteSpace: 'nowrap' }}
+                title="Refresh campaigns and latest view counters"
+              >
+                <RefreshCw size={14} className={refreshingCampaigns ? 'spin' : ''} />
+                <span>{refreshingCampaigns ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
             </div>
           </div>
 
@@ -1096,6 +1121,19 @@ export default function DashboardPage() {
                         <div className="campaign-total-pill">
                           {camp.totalClicks} Total {camp.totalClicks === 1 ? 'View' : 'Views'}
                         </div>
+
+                        {/* Campaign Card Refresh Button */}
+                        <button
+                          type="button"
+                          onClick={handleRefreshCampaigns}
+                          disabled={refreshingCampaigns}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '0.35rem 0.6rem', gap: '0.35rem' }}
+                          title="Refresh view counters for this campaign"
+                        >
+                          <RefreshCw size={13} className={refreshingCampaigns ? 'spin' : ''} />
+                          <span style={{ fontSize: '0.75rem' }}>Refresh</span>
+                        </button>
 
                         {/* Expand/Collapse Toggle */}
                         <button
