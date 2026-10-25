@@ -139,13 +139,104 @@ const CHANNELS = [
   { key: 'tiktok', name: 'TikTok', color: '#010101', Component: TikTokLogo, defaultSelected: false },
 ];
 
-function getChannelBadge(channelKey?: string | null) {
-  const found = CHANNELS.find((c) => c.key === (channelKey || '').toLowerCase());
+function getChannelBadge(channelKey?: string | null, link?: Partial<LinkItem>) {
+  let key = (channelKey || '').toLowerCase();
+
+  if (!key || key === 'other' || key === 'direct') {
+    if (link) {
+      const code = (link.code || '').toLowerCase();
+      const title = (link.title || '').toLowerCase();
+      const dest = (link.destination_url || '').toLowerCase();
+
+      let utmSource = '';
+      try {
+        if (link.destination_url) {
+          const u = new URL(link.destination_url);
+          utmSource = (u.searchParams.get('utm_source') || '').toLowerCase();
+        }
+      } catch {}
+
+      if (
+        utmSource === 'youtube' ||
+        code.endsWith('-yt') ||
+        code.includes('youtube') ||
+        code === 'yt' ||
+        code.includes('yt-') ||
+        title.includes('youtube') ||
+        dest.includes('youtube.com') ||
+        dest.includes('youtu.be')
+      ) {
+        key = 'youtube';
+      } else if (
+        utmSource === 'instagram' ||
+        code.endsWith('-ig') ||
+        code.includes('instagram') ||
+        code.includes('insta') ||
+        code === 'ig' ||
+        title.includes('instagram') ||
+        title.includes('insta') ||
+        dest.includes('instagram.com')
+      ) {
+        key = 'instagram';
+      } else if (
+        utmSource === 'facebook' ||
+        code.endsWith('-fb') ||
+        code.includes('facebook') ||
+        code === 'fb' ||
+        title.includes('facebook') ||
+        dest.includes('facebook.com') ||
+        dest.includes('fb.com')
+      ) {
+        key = 'facebook';
+      } else if (
+        utmSource === 'twitter' ||
+        utmSource === 'x' ||
+        code.endsWith('-x') ||
+        code.includes('twitter') ||
+        title.includes('twitter') ||
+        title.includes(' x ') ||
+        dest.includes('twitter.com') ||
+        dest.includes('x.com')
+      ) {
+        key = 'twitter';
+      } else if (
+        utmSource === 'whatsapp' ||
+        code.endsWith('-wa') ||
+        code.includes('whatsapp') ||
+        code === 'wa' ||
+        title.includes('whatsapp') ||
+        dest.includes('whatsapp.com') ||
+        dest.includes('wa.me')
+      ) {
+        key = 'whatsapp';
+      } else if (
+        utmSource === 'linkedin' ||
+        code.endsWith('-li') ||
+        code.includes('linkedin') ||
+        code === 'li' ||
+        title.includes('linkedin') ||
+        dest.includes('linkedin.com')
+      ) {
+        key = 'linkedin';
+      } else if (
+        utmSource === 'tiktok' ||
+        code.endsWith('-tt') ||
+        code.includes('tiktok') ||
+        code === 'tt' ||
+        title.includes('tiktok') ||
+        dest.includes('tiktok.com')
+      ) {
+        key = 'tiktok';
+      }
+    }
+  }
+
+  const found = CHANNELS.find((c) => c.key === key);
   if (found) {
     const LogoComp = found.Component;
-    return { name: found.name, color: found.color, LogoComp };
+    return { name: found.name, color: found.color, LogoComp, key: found.key };
   }
-  return { name: 'Direct Link', color: '#2563eb', LogoComp: GenericLogo };
+  return { name: 'Direct Link', color: '#2563eb', LogoComp: GenericLogo, key: 'direct' };
 }
 
 // ==============================================================================
@@ -409,7 +500,8 @@ export default function DashboardPage() {
     let total = 0;
 
     links.forEach((l) => {
-      const ch = (l.channel || 'other').toLowerCase();
+      const badge = getChannelBadge(l.channel, l);
+      const ch = badge.key;
       channelCounts[ch] = (channelCounts[ch] || 0) + (l.clicks_count || 0);
       total += l.clicks_count || 0;
     });
@@ -668,7 +760,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
               {successBatch.map((link) => {
-                const badge = getChannelBadge(link.channel);
+                const badge = getChannelBadge(link.channel, link);
                 const LogoComp = badge.LogoComp;
                 const fullUrl = `${origin}/go/${link.code}`;
                 const isCopied = copiedCode === link.code;
@@ -932,11 +1024,28 @@ export default function DashboardPage() {
               {campaignGroups.map((camp) => {
                 const isExpanded = expandedCampaigns[camp.name] !== false; // Default expanded
 
+                // Aggregate views per unique channel in this campaign
+                const channelMap: Record<string, { name: string; color: string; LogoComp: any; clicks: number }> = {};
+                camp.links.forEach((l) => {
+                  const badge = getChannelBadge(l.channel, l);
+                  const key = badge.name;
+                  if (!channelMap[key]) {
+                    channelMap[key] = {
+                      name: badge.name,
+                      color: badge.color,
+                      LogoComp: badge.LogoComp,
+                      clicks: 0,
+                    };
+                  }
+                  channelMap[key].clicks += l.clicks_count || 0;
+                });
+                const campChannelSummaries = Object.values(channelMap);
+
                 return (
                   <div key={camp.name} className="glass-card campaign-card">
                     {/* Campaign Header */}
                     <div className="campaign-card-header">
-                      <div>
+                      <div className="campaign-header-left">
                         <div className="campaign-name-title">{camp.name}</div>
                         <a
                           href={camp.destination}
@@ -950,49 +1059,26 @@ export default function DashboardPage() {
                         </a>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        {/* Channel Badges Summary */}
-                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                          {camp.links.map((l) => {
-                            const badge = getChannelBadge(l.channel);
-                            const Logo = badge.LogoComp;
+                      <div className="campaign-header-right">
+                        {/* Aggregated Unique Channel Badges */}
+                        <div className="campaign-badges-wrap">
+                          {campChannelSummaries.map((ch) => {
+                            const Logo = ch.LogoComp;
                             return (
-                              <div
-                                key={l.id}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  padding: '0.25rem 0.55rem',
-                                  borderRadius: 'var(--radius-full)',
-                                  background: '#ffffff',
-                                  border: '1px solid var(--glass-border-subtle)',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: 'var(--text-main)',
-                                  boxShadow: 'var(--shadow-sm)',
-                                }}
-                              >
+                              <div key={ch.name} className="campaign-channel-badge">
                                 <Logo size={14} />
-                                <span>{l.clicks_count} views</span>
+                                <span>{ch.name}:</span>
+                                <span className="badge-count">
+                                  {ch.clicks} {ch.clicks === 1 ? 'view' : 'views'}
+                                </span>
                               </div>
                             );
                           })}
                         </div>
 
                         {/* Total Views Pill */}
-                        <div
-                          style={{
-                            padding: '0.4rem 0.85rem',
-                            borderRadius: 'var(--radius-full)',
-                            background: 'var(--brand-gradient)',
-                            color: '#ffffff',
-                            fontWeight: 800,
-                            fontSize: '0.8125rem',
-                            boxShadow: 'var(--brand-glow)',
-                          }}
-                        >
-                          {camp.totalClicks} Total Views
+                        <div className="campaign-total-pill">
+                          {camp.totalClicks} Total {camp.totalClicks === 1 ? 'View' : 'Views'}
                         </div>
 
                         {/* Expand/Collapse Toggle */}
@@ -1011,69 +1097,78 @@ export default function DashboardPage() {
                     {isExpanded && (
                       <div className="channel-links-grid">
                         {camp.links.map((link) => {
-                          const badge = getChannelBadge(link.channel);
+                          const badge = getChannelBadge(link.channel, link);
                           const LogoComp = badge.LogoComp;
                           const isCopied = copiedCode === link.code;
-                          const fullUrl = `${origin}/go/${link.code}`;
 
                           return (
                             <div key={link.id} className="channel-link-box">
-                              <div className="channel-link-left">
-                                <LogoComp size={24} />
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                    <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                      {badge.name}
-                                    </span>
-                                    <span className="channel-views-badge">
-                                      {link.clicks_count} views
-                                    </span>
-                                  </div>
-                                  <div className="channel-code-text" title={fullUrl}>
-                                    /go/{link.code}
-                                  </div>
+                              {/* Top Row: Brand & View Count + Quick Actions */}
+                              <div className="channel-box-header">
+                                <div className="channel-brand-info">
+                                  <LogoComp size={22} />
+                                  <span className="channel-brand-name">{badge.name}</span>
+                                </div>
+
+                                <div className="channel-box-meta">
+                                  <span className="channel-views-badge">
+                                    {link.clicks_count || 0} {link.clicks_count === 1 ? 'view' : 'views'}
+                                  </span>
+
+                                  <button
+                                    onClick={() => handleInspectLink(link)}
+                                    className="channel-icon-btn"
+                                    title="View click audit logs (device, referrer, timestamp)"
+                                  >
+                                    <BarChart3 size={13} />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteLink(link.id, link.code)}
+                                    disabled={deletingId === link.id}
+                                    className="channel-icon-btn delete"
+                                    title="Delete this channel link"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
                                 </div>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              {/* Middle Row: Short Link Code Pill */}
+                              <div
+                                className="channel-url-pill"
+                                onClick={() => handleCopy(link.code)}
+                                title="Click to copy short link"
+                              >
+                                <LinkIcon size={14} className="channel-url-icon" />
+                                <span className="channel-url-code">/go/{link.code}</span>
+                                <span className="channel-url-copy-hint">
+                                  {isCopied ? 'Copied!' : 'Copy'}
+                                </span>
+                              </div>
+
+                              {/* Bottom Row: Full Action Buttons */}
+                              <div className="channel-actions-row">
                                 <button
                                   onClick={() => handleCopy(link.code)}
-                                  className={`btn-copy ${isCopied ? 'copied' : ''}`}
+                                  className={`btn-action-primary ${isCopied ? 'copied' : ''}`}
                                   title="Copy short link"
                                 >
-                                  {isCopied ? <Check size={13} /> : <Copy size={13} />}
-                                  <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                                  {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                                  <span>{isCopied ? 'Copied!' : 'Copy Link'}</span>
                                 </button>
 
                                 <a
                                   href={`/go/${link.code}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="btn-copy"
+                                  className="btn-action-secondary"
                                   title="Test redirect in new tab"
                                   onClick={() => setTimeout(() => loadData(true), 1200)}
                                 >
-                                  <ExternalLink size={13} />
-                                  <span>Test</span>
+                                  <ExternalLink size={14} />
+                                  <span>Test Redirect ↗</span>
                                 </a>
-
-                                <button
-                                  onClick={() => handleInspectLink(link)}
-                                  className="btn-copy"
-                                  title="View click audit logs (device, referrer, timestamp)"
-                                >
-                                  <BarChart3 size={13} />
-                                </button>
-
-                                <button
-                                  onClick={() => handleDeleteLink(link.id, link.code)}
-                                  disabled={deletingId === link.id}
-                                  className="btn-copy"
-                                  style={{ color: '#ef4444' }}
-                                  title="Delete this channel link"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
                               </div>
                             </div>
                           );

@@ -151,17 +151,91 @@ export function inferChannelAndCampaign(link: Link): Link {
   let channel = link.channel;
   let campaign = link.campaign;
 
-  if (!channel) {
-    const code = link.code.toLowerCase();
+  if (!channel || channel === 'other' || channel === 'direct') {
+    const code = (link.code || '').toLowerCase();
     const title = (link.title || '').toLowerCase();
-    if (code.endsWith('-yt') || title.includes('youtube')) channel = 'youtube';
-    else if (code.endsWith('-ig') || title.includes('instagram')) channel = 'instagram';
-    else if (code.endsWith('-fb') || title.includes('facebook')) channel = 'facebook';
-    else if (code.endsWith('-x') || title.includes('twitter') || title.includes(' x ')) channel = 'twitter';
-    else if (code.endsWith('-wa') || title.includes('whatsapp')) channel = 'whatsapp';
-    else if (code.endsWith('-li') || title.includes('linkedin')) channel = 'linkedin';
-    else if (code.endsWith('-tt') || title.includes('tiktok')) channel = 'tiktok';
-    else channel = 'other';
+    const dest = (link.destination_url || '').toLowerCase();
+
+    let utmSource = '';
+    try {
+      const u = new URL(link.destination_url);
+      utmSource = (u.searchParams.get('utm_source') || '').toLowerCase();
+    } catch {}
+
+    if (
+      utmSource === 'youtube' ||
+      code.endsWith('-yt') ||
+      code.includes('youtube') ||
+      code === 'yt' ||
+      code.includes('yt-') ||
+      title.includes('youtube') ||
+      dest.includes('youtube.com') ||
+      dest.includes('youtu.be')
+    ) {
+      channel = 'youtube';
+    } else if (
+      utmSource === 'instagram' ||
+      code.endsWith('-ig') ||
+      code.includes('instagram') ||
+      code.includes('insta') ||
+      code === 'ig' ||
+      title.includes('instagram') ||
+      title.includes('insta') ||
+      dest.includes('instagram.com')
+    ) {
+      channel = 'instagram';
+    } else if (
+      utmSource === 'facebook' ||
+      code.endsWith('-fb') ||
+      code.includes('facebook') ||
+      code === 'fb' ||
+      title.includes('facebook') ||
+      dest.includes('facebook.com') ||
+      dest.includes('fb.com')
+    ) {
+      channel = 'facebook';
+    } else if (
+      utmSource === 'twitter' ||
+      utmSource === 'x' ||
+      code.endsWith('-x') ||
+      code.includes('twitter') ||
+      title.includes('twitter') ||
+      title.includes(' x ') ||
+      dest.includes('twitter.com') ||
+      dest.includes('x.com')
+    ) {
+      channel = 'twitter';
+    } else if (
+      utmSource === 'whatsapp' ||
+      code.endsWith('-wa') ||
+      code.includes('whatsapp') ||
+      code === 'wa' ||
+      title.includes('whatsapp') ||
+      dest.includes('whatsapp.com') ||
+      dest.includes('wa.me')
+    ) {
+      channel = 'whatsapp';
+    } else if (
+      utmSource === 'linkedin' ||
+      code.endsWith('-li') ||
+      code.includes('linkedin') ||
+      code === 'li' ||
+      title.includes('linkedin') ||
+      dest.includes('linkedin.com')
+    ) {
+      channel = 'linkedin';
+    } else if (
+      utmSource === 'tiktok' ||
+      code.endsWith('-tt') ||
+      code.includes('tiktok') ||
+      code === 'tt' ||
+      title.includes('tiktok') ||
+      dest.includes('tiktok.com')
+    ) {
+      channel = 'tiktok';
+    } else {
+      channel = 'direct';
+    }
   }
 
   if (!campaign) {
