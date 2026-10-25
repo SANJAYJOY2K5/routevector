@@ -148,91 +148,103 @@ function saveStore(store: FallbackStore) {
 }
 
 export function inferChannelAndCampaign(link: Link): Link {
-  let channel = link.channel;
+  let channel = (link.channel || '').toLowerCase();
   let campaign = link.campaign;
 
-  if (!channel || channel === 'other' || channel === 'direct') {
+  const recognizedChannels = ['youtube', 'instagram', 'facebook', 'twitter', 'whatsapp', 'linkedin', 'tiktok'];
+
+  if (!recognizedChannels.includes(channel)) {
     const code = (link.code || '').toLowerCase();
     const title = (link.title || '').toLowerCase();
-    const dest = (link.destination_url || '').toLowerCase();
 
     let utmSource = '';
     try {
-      const u = new URL(link.destination_url);
-      utmSource = (u.searchParams.get('utm_source') || '').toLowerCase();
+      if (link.destination_url) {
+        const u = new URL(link.destination_url);
+        utmSource = (u.searchParams.get('utm_source') || '').toLowerCase();
+      }
     } catch {}
 
-    if (
-      utmSource === 'youtube' ||
-      code.endsWith('-yt') ||
-      code.includes('youtube') ||
-      code === 'yt' ||
-      code.includes('yt-') ||
-      title.includes('youtube') ||
-      dest.includes('youtube.com') ||
-      dest.includes('youtu.be')
-    ) {
+    if (utmSource === 'instagram' || utmSource === 'ig') {
+      channel = 'instagram';
+    } else if (utmSource === 'youtube' || utmSource === 'yt') {
       channel = 'youtube';
+    } else if (utmSource === 'facebook' || utmSource === 'fb') {
+      channel = 'facebook';
+    } else if (utmSource === 'twitter' || utmSource === 'x') {
+      channel = 'twitter';
+    } else if (utmSource === 'whatsapp' || utmSource === 'wa') {
+      channel = 'whatsapp';
+    } else if (utmSource === 'linkedin' || utmSource === 'li') {
+      channel = 'linkedin';
+    } else if (utmSource === 'tiktok' || utmSource === 'tt') {
+      channel = 'tiktok';
     } else if (
-      utmSource === 'instagram' ||
       code.endsWith('-ig') ||
+      code.endsWith('_ig') ||
       code.includes('instagram') ||
       code.includes('insta') ||
-      code === 'ig' ||
-      title.includes('instagram') ||
-      title.includes('insta') ||
-      dest.includes('instagram.com')
+      code === 'ig'
     ) {
       channel = 'instagram';
     } else if (
-      utmSource === 'facebook' ||
       code.endsWith('-fb') ||
+      code.endsWith('_fb') ||
       code.includes('facebook') ||
-      code === 'fb' ||
-      title.includes('facebook') ||
-      dest.includes('facebook.com') ||
-      dest.includes('fb.com')
+      code === 'fb'
     ) {
       channel = 'facebook';
     } else if (
-      utmSource === 'twitter' ||
-      utmSource === 'x' ||
-      code.endsWith('-x') ||
-      code.includes('twitter') ||
-      title.includes('twitter') ||
-      title.includes(' x ') ||
-      dest.includes('twitter.com') ||
-      dest.includes('x.com')
-    ) {
-      channel = 'twitter';
-    } else if (
-      utmSource === 'whatsapp' ||
       code.endsWith('-wa') ||
+      code.endsWith('_wa') ||
       code.includes('whatsapp') ||
-      code === 'wa' ||
-      title.includes('whatsapp') ||
-      dest.includes('whatsapp.com') ||
-      dest.includes('wa.me')
+      code === 'wa'
     ) {
       channel = 'whatsapp';
     } else if (
-      utmSource === 'linkedin' ||
+      code.endsWith('-x') ||
+      code.endsWith('_x') ||
+      code.includes('twitter') ||
+      code === 'x'
+    ) {
+      channel = 'twitter';
+    } else if (
       code.endsWith('-li') ||
+      code.endsWith('_li') ||
       code.includes('linkedin') ||
-      code === 'li' ||
-      title.includes('linkedin') ||
-      dest.includes('linkedin.com')
+      code === 'li'
     ) {
       channel = 'linkedin';
     } else if (
-      utmSource === 'tiktok' ||
       code.endsWith('-tt') ||
+      code.endsWith('_tt') ||
       code.includes('tiktok') ||
-      code === 'tt' ||
-      title.includes('tiktok') ||
-      dest.includes('tiktok.com')
+      code === 'tt'
     ) {
       channel = 'tiktok';
+    } else if (
+      code.endsWith('-yt') ||
+      code.endsWith('_yt') ||
+      code.includes('youtube') ||
+      code === 'yt' ||
+      code.startsWith('yt-') ||
+      code.startsWith('yt_')
+    ) {
+      channel = 'youtube';
+    } else if (title.includes('· instagram') || title.includes('| instagram') || title.includes('instagram')) {
+      channel = 'instagram';
+    } else if (title.includes('· facebook') || title.includes('| facebook') || title.includes('facebook')) {
+      channel = 'facebook';
+    } else if (title.includes('· whatsapp') || title.includes('| whatsapp') || title.includes('whatsapp')) {
+      channel = 'whatsapp';
+    } else if (title.includes('· twitter') || title.includes('| twitter') || title.includes('twitter') || title.includes('· x')) {
+      channel = 'twitter';
+    } else if (title.includes('· linkedin') || title.includes('| linkedin') || title.includes('linkedin')) {
+      channel = 'linkedin';
+    } else if (title.includes('· tiktok') || title.includes('| tiktok') || title.includes('tiktok')) {
+      channel = 'tiktok';
+    } else if (title.includes('· youtube') || title.includes('| youtube')) {
+      channel = 'youtube';
     } else {
       channel = 'direct';
     }
